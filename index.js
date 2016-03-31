@@ -55,7 +55,7 @@ function validator(scheme) {
 function parser(expression) {
     switch(Object.prototype.toString.call(expression)){
         case '[object String]':
-            return stringParser(expression);
+            return schemaParser(stringParser(expression));
         case '[object Object]':
             return schemaParser(expression);
         default:
@@ -65,31 +65,41 @@ function parser(expression) {
 }
 function schemaParser(schema) {
     var validators = schema.validators;
-    checkValidatorsExistence(validators);
+    var conditions = schema.conditions;
+    if (!Array.isArray(validators)) {
+        throw 'Validators have to be specified';
+    }
     return {
         validators: validators,
-        path: splitPath(schema.path)
+        path: splitPath(schema.path),
+        conditions: conditions || []
     };
 }
 function stringParser(expression) {
     var parts = expression.split(COMMAND_DELIMITER);
     var path = parts[0];
     var validators = parts[1];
-    checkValidatorsExistence(validators);
+    var conditions;
+    if(typeof validators !== 'string'){
+        throw 'Validators are absent in the expression';
+    }
+    var indexOfConditions = validators.indexOf('?');
+    if(indexOfConditions !== -1){
+        conditions = validators.split('?').slice(1);
+        validators = validators.slice(0, indexOfConditions);
+    }
+
     return {
-        path: splitPath(path),
-        validators: validators.split('&')
+        path: path,
+        validators: validators.split('&'),
+        conditions: conditions
     };
 }
-function checkValidatorsExistence(validators){
-    if (typeof validators !== 'string' && !Array.isArray(validators)) {
-        throw 'Validators have to be specified';
-    }
+function splitPath(path) {
+    return path === '' ? [] :path.split('.');
 }
 
-function splitPath(path) {
-    return path.split('.');
-}
+
 
 function validatorProvider() {
     var validators = {};
